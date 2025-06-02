@@ -1,0 +1,9 @@
+[submodule "contracts/lib/poseidon2-evm"]
+	path = contracts/lib/poseidon2-evm
+	url = https://github.com/zemse/poseidon2-evm
+[submodule "contracts/lib/forge-std"]
+	path = contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "contracts/lib/openzeppelin-contracts"]
+	path = contracts/lib/openzeppelin-contracts
+	url = https://github.com/openzeppelin/openzeppelin-contracts
