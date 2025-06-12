@@ -32,7 +32,7 @@ git clone https://github.com/Cyfrin/zk-mixer-cu.git
 ### 2. Install the dependencies
 
 ```bash
-cd contracts && forge install
+npm install && cd contracts && forge install
 ```
 
 ### 3. Running the tests

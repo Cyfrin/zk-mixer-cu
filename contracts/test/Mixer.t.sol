@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
 import {HonkVerifier} from "../src/Verifier.sol";

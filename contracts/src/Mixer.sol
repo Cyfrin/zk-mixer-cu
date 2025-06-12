@@ -11,7 +11,7 @@
  *         This contract is unaudited and intended for demonstration only.
  */
 
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.24;
 
 import {IVerifier} from "./Verifier.sol";
 import {IncrementalMerkleTree, Poseidon2} from "./IncrementalMerkleTree.sol";
