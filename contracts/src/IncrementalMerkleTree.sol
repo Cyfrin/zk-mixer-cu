@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.26;
+pragma solidity ^0.8.24;
 
 import {Field} from "@poseidon/src/Field.sol";
 import {Poseidon2} from "@poseidon/src/Poseidon2.sol";
 
 contract IncrementalMerkleTree {
     uint256 public constant FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
+    // the "zero" element is the default value for the Merkle tree, it is used to fill in empty nodes keccak256("cyfrin") % FIELD_SIZE
+    bytes32 public constant ZERO_ELEMENT = bytes32(0x0d823319708ab99ec915efd4f7e03d11ca1790918e8f04cd14100aceca2aa9ff); 
     Poseidon2 public immutable i_hasher; // instance of the contract which has the Poseidon hash logic
 
     uint32 public immutable i_depth; // the depth of the Merkle tree, i.e. the number of levels in the tree
@@ -21,7 +23,7 @@ contract IncrementalMerkleTree {
     uint32 public s_currentRootIndex = 0; // where in ROOT_HISTORY_SIZE the current root is stored in the roots array
     uint32 public s_nextLeafIndex = 0; // the index of the next leaf index to be inserted into the tree
 
-    error IncrementalMerkleTree__LeftValueOutOfRange(bytes32 left); // NOTE: remove?
+    error IncrementalMerkleTree__LeftValueOutOfRange(bytes32 left);
     error IncrementalMerkleTree__RightValueOutOfRange(bytes32 right);
     error IncrementalMerkleTree__LevelsShouldBeGreaterThanZero(uint32 depth);
     error IncrementalMerkleTree__LevelsShouldBeLessThan32(uint32 depth);
@@ -38,18 +40,19 @@ contract IncrementalMerkleTree {
         i_depth = _depth;
         i_hasher = _hasher;
 
-        s_roots[0] = zeros(_depth - 1);
+        s_roots[0] = zeros(_depth);
     }
 
     /**
      * @dev Hash 2 tree leaves, returns Poseidon(_left, _right)
      */
     function hashLeftRight(bytes32 _left, bytes32 _right) public view returns (bytes32) {
+        // these checks aren't needed since the hash function will return a valid value
         if (uint256(_left) >= FIELD_SIZE) {
             revert IncrementalMerkleTree__LeftValueOutOfRange(_left);
         }
         if (uint256(_right) >= FIELD_SIZE) {
-            revert IncrementalMerkleTree__RightValueOutOfRange(_right); // can this not cause an issue
+            revert IncrementalMerkleTree__RightValueOutOfRange(_right);
         }
         
         return Field.toBytes32(i_hasher.hash_2(Field.toField(_left), Field.toField(_right)));
@@ -102,7 +105,7 @@ contract IncrementalMerkleTree {
      */
     function isKnownRoot(bytes32 _root) public view returns (bool) {
         // check if they are trying to bypass the check by passing a zero root which is the defualt value
-        if (_root == 0) {
+        if (_root == bytes32(0)) {
             return false;
         }
         uint32 _currentRootIndex = s_currentRootIndex; // cash the result so we don't have to read it multiple times
@@ -127,7 +130,9 @@ contract IncrementalMerkleTree {
     }
 
     // NOTE: change when you know the hash function to use
-    /// @dev provides Zero (Empty) elements for a Poseidon MerkleTree. Up to 32 level (never need the value for the root if all leaves are empty so level 32 itself is not included)
+    /// @notice Returns the root of a subtree at the given depth
+    /// @param i The depth of the subtree root to return
+    /// @return The root of the given subtree
     function zeros(uint256 i) public pure returns (bytes32) {
         if (i == 0) return bytes32(0x0d823319708ab99ec915efd4f7e03d11ca1790918e8f04cd14100aceca2aa9ff);
         else if (i == 1) return bytes32(0x170a9598425eb05eb8dc06986c6afc717811e874326a79576c02d338bdf14f13);

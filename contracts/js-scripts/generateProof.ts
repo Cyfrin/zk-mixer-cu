@@ -1,5 +1,5 @@
 import { Barretenberg, Fr, UltraHonkBackend } from "@aztec/bb.js";
-import { ethers, isBytesLike, isHexString, hexlify } from "ethers";
+import { ethers } from "ethers";
 // import { merkleTree } from "./utils/merkleTree.js";
 import { merkleTree } from "./merkleTree.js";
 // @ts-ignore
@@ -9,41 +9,7 @@ import { Noir } from "@noir-lang/noir_js";
 import path from 'path';
 import fs from 'fs';
 
-const circuitPath = path.resolve(__dirname, '../../circuits/target/circuits.json');
-const circuit = JSON.parse(fs.readFileSync(circuitPath, 'utf8'));
-
-// root: pub Field,
-// nullifier_hash: pub Field,
-// recipient: pub Field,
-// // Private inputs
-// nullifier: Field,
-// secret: Field,
-// merkle_proof: [Field; 20],
-// proof_is_right: [bool; 20])
-
-// interface ProofInputs {
-//   root: string;
-//   nullifier_hash: string;
-//   recipient: string;
-//   nullifier: string;
-//   secret: string;
-//   merkle_proof: string[];
-//   proof_is_right: number[];
-// }
-
-export function uint8ArrayToHex(buffer: Uint8Array): string {
-  const hex: string[] = [];
-
-  buffer.forEach(function (i) {
-    let h = i.toString(16);
-    if (h.length % 2) {
-      h = "0" + h;
-    }
-    hex.push(h);
-  });
-
-  return hex.join("");
-}
+const circuit = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../circuits/target/circuits.json'), 'utf8'));
 
 export default async function generateProof() {
   // Initialize Barretenberg
@@ -70,7 +36,6 @@ export default async function generateProof() {
   try {
     const noir = new Noir(circuit);
     const honk = new UltraHonkBackend(circuit.bytecode, { threads: 1 });
-
     const input = {
       // Public inputs
       root: merkleProof.root,
@@ -81,7 +46,7 @@ export default async function generateProof() {
       nullifier: nullifier.toString(),
       secret: secret.toString(),
       merkle_proof: merkleProof.pathElements.map(i => i.toString()), // Convert to string
-      proof_is_right: merkleProof.pathIndices.map(i => i === 1), 
+      is_even: merkleProof.pathIndices.map(i => i % 2 == 0), // if the proof indicie is even, set to false as the hash will be odd
     };
     const { witness } = await noir.execute(input);
 
@@ -90,23 +55,14 @@ export default async function generateProof() {
     console.log = () => {};
 
     const { proof, publicInputs } = await honk.generateProof(witness, { keccak: true });
-    const offChainProof = await honk.generateProof(witness);
-    const isValid = await honk.verifyProof(offChainProof);
     // Restore original console.log
     console.log = originalLog;
 
-    // if (!isValid) {
-    //   throw new Error("Proof is invalid");
-    // } else {
-    //   console.log(`Proof is valid: ${isValid} ✅`);
-    // }
-    
-    //console.log("pub input length:", publicInputs);
-    const res = ethers.AbiCoder.defaultAbiCoder().encode(
+    const result = ethers.AbiCoder.defaultAbiCoder().encode(
         ["bytes", "bytes32[]"],
         [proof, publicInputs]
       );
-    return res;
+    return result;
   } catch (error) {
     console.log(error);
     throw error;
@@ -115,8 +71,8 @@ export default async function generateProof() {
 
 (async () => {
     generateProof()
-    .then((res) => {
-      process.stdout.write(res);
+    .then((result) => {
+      process.stdout.write(result);
       process.exit(0);
     })
     .catch((error) => {

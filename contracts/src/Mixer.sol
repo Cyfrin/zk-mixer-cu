@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: MIT
-// NOTE: add creds etc
+/**
+ * @title Mixer (Educational Adaptation of Tornado Cash)
+ * @notice This smart contract is a simplified and modified version of the Tornado Cash protocol,
+ *         developed purely for educational purposes as part of a blockchain development course.
+ * @dev The original design and cryptographic structure are inspired by Tornado Cash:
+ *      https://github.com/tornadocash/tornado-core
+ *
+ * @author Cyfrin
+ * @notice Do not deploy this contract to mainnet or use it for handling real funds.
+ *         This contract is unaudited and intended for demonstration only.
+ */
 
 pragma solidity ^0.8.26;
 
+import {IVerifier} from "./Verifier.sol";
 import {IncrementalMerkleTree, Poseidon2} from "./IncrementalMerkleTree.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {IVerifier} from "./Verifier.sol"; // import the verifier interface
-
-// interface IVerifier {
-//     function verify(bytes calldata _proof, bytes32[] calldata _publicInputs) external view returns (bool);
-// }
-
-// Interface for the verifier generated using Noir compiler -> BB
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract Mixer is IncrementalMerkleTree, ReentrancyGuard {
     IVerifier public immutable i_verifier; // Noir generated i_verifier contract
@@ -34,11 +38,11 @@ contract Mixer is IncrementalMerkleTree, ReentrancyGuard {
      * @dev The constructor
      * @param _verifier the address of SNARK verifier for this contract
      * @param _hasher the address of MiMC hash contract
-     * @param _merkleTreeHeight the height of deposits' Merkle Tree
+     * @param _merkleTreeDepth the depth of deposits' Merkle Tree
      */
 
-    constructor(IVerifier _verifier, Poseidon2 _hasher, uint32 _merkleTreeHeight)
-        IncrementalMerkleTree(_merkleTreeHeight, _hasher)
+    constructor(IVerifier _verifier, Poseidon2 _hasher, uint32 _merkleTreeDepth)
+        IncrementalMerkleTree(_merkleTreeDepth, _hasher)
     {
         i_verifier = _verifier;
     }
@@ -97,7 +101,7 @@ contract Mixer is IncrementalMerkleTree, ReentrancyGuard {
             revert Mixer__InvalidWithdrawProof();
         }
 
-        s_nullifierHashes[_nullifierHash] = true; // mark the nullifier as used
+        s_nullifierHashes[_nullifierHash] = true; // mark the nullifier as used before sending the funds
         (bool success,) = _recipient.call{value: DENOMINATION}("");
         if (!success) {
             revert Mixer__PaymentFailed({recipient: _recipient, amount: DENOMINATION});

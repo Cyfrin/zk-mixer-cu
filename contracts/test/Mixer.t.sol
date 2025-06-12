@@ -7,24 +7,11 @@ import {Mixer, IVerifier, Poseidon2} from "../src/Mixer.sol";
 import {IncrementalMerkleTree} from "../src/IncrementalMerkleTree.sol";
 
 contract ETHTornadoTest is Test {
-    uint256 public constant FIELD_SIZE = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
-
     IVerifier public verifier;
     Mixer public mixer;
     Poseidon2 public poseidon;
 
-    // Test vars
     address public recipient = makeAddr("recipient");
-
-    // why do i need this?
-    // function deployMimcSponge(bytes memory bytecode) public returns (address) {
-    //     address deployedAddress;
-    //     assembly {
-    //         deployedAddress := create(0, add(bytecode, 0x20), mload(bytecode))
-    //         if iszero(deployedAddress) { revert(0, 0) }
-    //     }
-    //     return deployedAddress;
-    // }
 
     function setUp() public {
         // Deploy Poseiden hasher contract
@@ -33,14 +20,7 @@ contract ETHTornadoTest is Test {
         // Deploy Groth16 verifier contract.
         verifier = new HonkVerifier();
 
-        /**
-         * Deploy Tornado Cash mixer
-         *
-         * - verifier: HonkVerifier contract
-         * - hasher: Poseidon2 contract
-         * - denomination: 0.001 ETH
-         * - merkleTreeHeight: 20
-         */
+
         mixer = new Mixer(IVerifier(verifier), poseidon, 20);
     }
 
@@ -110,47 +90,57 @@ contract ETHTornadoTest is Test {
             _getProof(nullifier, secret, recipient, leaves);
     }
 
-    function testMixerSingleDeposit() public {
-        // 1. Generate commitment and deposit
-        (bytes32 commitment, bytes32 nullifier, bytes32 secret) = _getCommitment();
+    function testMakeDeposit() public {
+        // create a commitment
+        // make a deposit
+        (bytes32 _commitment, bytes32 _nullifier, bytes32 _secret) = _getCommitment();
+        console.log("Commitment: ");
+        console.logBytes32(_commitment);
+        vm.expectEmit(true, false, false, true);
+        emit Mixer.Deposit(_commitment, 0, block.timestamp);
+        mixer.deposit{value: mixer.DENOMINATION()}(_commitment);
+    }
 
-        // NOTE: make this a fixed denomination
-        mixer.deposit{value: mixer.DENOMINATION()}(commitment);
+    function testMakeWithdrawal() public {
+        // make a deposit
+        (bytes32 _commitment, bytes32 _nullifier, bytes32 _secret) = _getCommitment();
+        console.log("Commitment: ");
+        console.logBytes32(_commitment);
+        vm.expectEmit(true, false, false, true);
+        emit Mixer.Deposit(_commitment, 0, block.timestamp);
+        mixer.deposit{value: mixer.DENOMINATION()}(_commitment);
 
-        // 2. Generate witness and proof.
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = commitment;
-        (bytes memory proof, bytes32[] memory publicInputs) =
-            _getProof(nullifier, secret, recipient, leaves);
-        // root
-        console.log("PublicInputs[0]: ");
-        console.logBytes32(publicInputs[0]);
-        // nullifierHash
-        console.log("PublicInputs[1]: ");
-        console.logBytes32(publicInputs[1]);
-        // recipient
-        console.log("PublicInputs[2]: ");
-        console.logBytes32(publicInputs[2]);
-        
-        // 3. Verify proof against the verifier contract.
-        // bytes32[] memory publicInputs = new bytes32[](3);
-        // publicInputs[0] = root; // the root of the Merkle tree
-        // publicInputs[1] = nullifierHash; // the nullifier hash
-        // publicInputs[2] = bytes32(uint256(uint160(recipient))); // the recipient address
-        assertTrue(
-            verifier.verify(
-                proof,
-                publicInputs
-            )
-        );
-
-        // 4. Withdraw funds from the contract.
+        leaves[0] = _commitment;
+        // create a proof
+        (bytes memory _proof, bytes32[] memory _publicInputs) = _getProof(_nullifier, _secret, recipient, leaves);
+        assertTrue(verifier.verify(_proof, _publicInputs));
+        // make a withdrawal
         assertEq(recipient.balance, 0);
         assertEq(address(mixer).balance, mixer.DENOMINATION());
-        console.log("last root: ");
-        console.logBytes32(mixer.getLastRoot());
-        mixer.withdraw(proof, publicInputs[0], publicInputs[1], payable(recipient));
+        mixer.withdraw(_proof, _publicInputs[0], _publicInputs[1], payable(address(uint160(uint256(_publicInputs[2])))));
         assertEq(recipient.balance, mixer.DENOMINATION());
         assertEq(address(mixer).balance, 0);
+    }
+
+    function testAnotherAddressSendProof() public {
+        // make a deposit
+        (bytes32 _commitment, bytes32 _nullifier, bytes32 _secret) = _getCommitment();
+        console.log("Commitment: ");
+        console.logBytes32(_commitment);
+        vm.expectEmit(true, false, false, true);
+        emit Mixer.Deposit(_commitment, 0, block.timestamp);
+        mixer.deposit{value: mixer.DENOMINATION()}(_commitment);
+
+        // create a proof
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _commitment;
+        (bytes memory _proof, bytes32[] memory _publicInputs) = _getProof(_nullifier, _secret, recipient, leaves);
+
+        // make a withdrawal
+        address attacker = makeAddr("attacker");
+        vm.prank(attacker);
+        vm.expectRevert();
+        mixer.withdraw(_proof, _publicInputs[0], _publicInputs[1], payable(attacker));
     }
 }
