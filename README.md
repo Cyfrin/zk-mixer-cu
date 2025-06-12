@@ -9,7 +9,7 @@ This app allows users to deposit assets and later withdraw them without linking 
     - These commitmentsw are stored in a merkle tree (on-chain?)
     - The root of this Merkle tree is updated whenever a new deposit is made
 - ZK proofs for withdrawals:
-    - The withdrawer proves (using Noir) that they know a valid **preimage** for a commitmnebnt in the Merkle tree (without revealing which commitment they know)
+    - The withdrawer proves (using Noir) that they know a valid **preimage** for a commitment in the Merkle tree (without revealing which commitment they know)
     - The proof should also confirm that the commitment is part of a valid tree root without revealing which specific leaf they control.
     - To prevent double-spending, include a nullifier (a hash of the secret that gets recorded on-chain when withdrawn).
 
@@ -20,3 +20,47 @@ Zero Knowledge Proofs (ZKPs) allow a prover to convince a verifier that a specif
 ### Notes
 
 - We have removed paymasters to simplify the code. This means the receiving wallet will need to pay the gas fees therefore, hold native tokens
+
+## Usage
+
+### 1. Clone the repo
+
+```bash
+git clone https://github.com/Cyfrin/zk-mixer-cu.git
+```
+
+### 2. Install the dependencies
+
+```bash
+cd contracts && forge install
+```
+
+### 3. Running the tests
+
+```bash
+forge test
+```
+
+#### 4. (optional) re-creating the verifier
+
+This step is needed if you modify the circuit logic at all.
+
+1. Navigate inside the circuits folder and compile the circuit
+
+```bash
+nargo compile
+```
+
+2. Generate the verifiaction key
+
+```bash
+bb write_vk --oracle_hash keccak -b ./target/circuits.json -o ./target
+```
+
+3. Generate the verifier
+
+```bash
+bb write_solidity_verifier -k ./target/vk -o ./target/Verifier.sol
+```
+
+4. Delete your old `Verifier.sol` from inside `contracts/src` and replay with the new one!
