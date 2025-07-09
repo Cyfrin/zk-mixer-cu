@@ -108,7 +108,7 @@ contract IncrementalMerkleTree {
         if (_root == bytes32(0)) {
             return false;
         }
-        uint32 _currentRootIndex = s_currentRootIndex; // cash the result so we don't have to read it multiple times
+        uint32 _currentRootIndex = s_currentRootIndex; // cache the result so we don't have to read it multiple times
         uint32 i = _currentRootIndex; // show the diagram:)
         do {
             if (_root == s_roots[i]) {
