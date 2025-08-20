@@ -1,7 +1,9 @@
 import { Barretenberg, Fr } from '@aztec/bb.js';
-
+let bb;
 async function hashLeftRight(left, right) {
-  const bb = await Barretenberg.new();
+  if (!bb) {
+    bb = await Barretenberg.new();
+  }
   const frLeft = Fr.fromString(left);
   const frRight = Fr.fromString(right);
   const hash = await bb.poseidon2Hash([frLeft, frRight]);
